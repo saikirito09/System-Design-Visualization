@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Fixed Window Counter Visualization</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+        <style>
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background-color: #ffffff;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                color: #000000;
+            }
+            #app-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                max-width: 800px;
+                width: 100%;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+            h1 {
+                font-size: 24px;
+                margin-bottom: 10px;
+                color: #000000;
+            }
+            #controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: 20px;
+                background-color: #f0f0f0;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .control-group {
+                display: flex;
+                align-items: center;
+                margin: 0 10px;
+            }
+            label {
+                margin-right: 10px;
+                font-weight: 600;
+            }
+            input {
+                width: 60px;
+                padding: 5px;
+                border: 1px solid #000000;
+                border-radius: 4px;
+            }
+            #request-button {
+                background-color: #000000;
+                color: #ffffff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+                transition: background-color 0.3s;
+            }
+            #request-button:hover {
+                background-color: #333333;
+            }
+            #explanation {
+                max-width: 600px;
+                text-align: center;
+                margin-top: 20px;
+                line-height: 1.6;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app-container">
+            <h1>Fixed Window Counter Algorithm Visualization</h1>
+            <div id="controls">
+                <div class="control-group">
+                    <label for="windowSize">Window Size (s):</label>
+                    <input
+                        type="number"
+                        id="windowSize"
+                        value="5"
+                        min="1"
+                        max="10"
+                    />
+                </div>
+                <div class="control-group">
+                    <label for="maxRequests">Max Requests:</label>
+                    <input
+                        type="number"
+                        id="maxRequests"
+                        value="10"
+                        min="1"
+                        max="20"
+                    />
+                </div>
+            </div>
+            <div id="canvas-container"></div>
+            <button id="request-button">Make Request</button>
+            <div id="explanation">
+                <p>
+                    The Fixed Window Counter algorithm limits the rate of
+                    requests by counting events in fixed time windows. Each
+                    window has a maximum number of allowed requests. When the
+                    window expires, the counter resets. This helps prevent
+                    system overload by limiting the request rate.
+                </p>
+            </div>
+        </div>
+        <script>
+            let counter;
+            let windowSizeInput, maxRequestsInput, requestButton;
+            let requests = [];
+            let rejectedRequestAnimation = null;
+            let errorPopup = null;
+
+            const colors = {
+                background: "#ffffff",
+                window: "#e6e6e6",
+                request: "#66cc66",
+                rejected: "#ff6666",
+                computer: "#999999",
+                arrow: "#333333",
+                errorPopup: "#ff0000",
+                text: "#000000",
+            };
+
+            function setup() {
+                const canvas = createCanvas(600, 400);
+                canvas.parent("canvas-container");
+                textAlign(CENTER, CENTER);
+
+                windowSizeInput = select("#windowSize");
+                maxRequestsInput = select("#maxRequests");
+                requestButton = select("#request-button");
+
+                windowSizeInput.input(updateCounter);
+                maxRequestsInput.input(updateCounter);
+                requestButton.mousePressed(makeRequest);
+
+                updateCounter();
+            }
+
+            function updateCounter() {
+                let windowSize = parseInt(windowSizeInput.value());
+                let maxRequests = parseInt(maxRequestsInput.value());
+                counter = new FixedWindowCounter(windowSize, maxRequests);
+                requests = [];
+            }
+
+            function makeRequest() {
+                if (counter.increment()) {
+                    console.log("Request accepted");
+                    requests.push(new Request(random(100, 200), 0));
+                } else {
+                    console.log("Request rejected");
+                    rejectedRequestAnimation = new RejectedRequestAnimation(
+                        random(100, 200),
+                        0,
+                    );
+                    errorPopup = new ErrorPopup();
+                }
+            }
+
+            function draw() {
+                background(colors.background);
+
+                counter.update();
+
+                drawWindow(150, height / 2, 150, 150);
+                drawComputer(width - 100, height / 2, 100, 80);
+                drawArrow(300, height / 2, width - 150, height / 2);
+
+                for (let i = requests.length - 1; i >= 0; i--) {
+                    requests[i].update();
+                    requests[i].display();
+                    if (requests[i].x > width) {
+                        requests.splice(i, 1);
+                    }
+                }
+
+                if (rejectedRequestAnimation) {
+                    rejectedRequestAnimation.update();
+                    rejectedRequestAnimation.display();
+                    if (rejectedRequestAnimation.completed) {
+                        rejectedRequestAnimation = null;
+                    }
+                }
+
+                if (errorPopup) {
+                    errorPopup.update();
+                    errorPopup.display();
+                    if (errorPopup.completed) {
+                        errorPopup = null;
+                    }
+                }
+
+                displayCounterInfo();
+            }
+
+            function drawWindow(x, y, w, h) {
+                push();
+                translate(x - w / 2, y - h / 2);
+                fill(colors.window);
+                stroke(colors.text);
+                strokeWeight(2);
+                rect(0, 0, w, h, 10);
+
+                // Draw progress bar
+                let progressHeight =
+                    (counter.timeElapsed / counter.windowSize) * h;
+                fill(colors.request);
+                noStroke();
+                rect(0, h - progressHeight, w, progressHeight, 0, 0, 10, 10);
+
+                // Draw request count
+                fill(colors.text);
+                textSize(24);
+                text(`${counter.count}/${counter.maxRequests}`, w / 2, h / 2);
+
+                pop();
+            }
+
+            function drawComputer(x, y, w, h) {
+                push();
+                translate(x, y);
+                fill(colors.computer);
+                stroke(colors.text);
+                strokeWeight(2);
+                rect(0, 0, w, h * 0.7, 5);
+                fill(colors.background);
+                rect(w * 0.1, h * 0.1, w * 0.8, h * 0.5, 2);
+                fill(colors.computer);
+                rect(w * 0.4, h * 0.7, w * 0.2, h * 0.2);
+                rect(w * 0.3, h * 0.9, w * 0.4, h * 0.1);
+                pop();
+            }
+
+            function drawArrow(x1, y1, x2, y2) {
+                push();
+                stroke(colors.arrow);
+                strokeWeight(2);
+                line(x1, y1, x2, y2);
+                let angle = atan2(y2 - y1, x2 - x1);
+                translate(x2, y2);
+                rotate(angle);
+                fill(colors.arrow);
+                triangle(0, 0, -10, -5, -10, 5);
+                pop();
+            }
+
+            function displayCounterInfo() {
+                fill(colors.text);
+                textSize(16);
+                text(
+                    `Window: ${counter.timeElapsed.toFixed(1)}/${counter.windowSize}s`,
+                    150,
+                    height - 40,
+                );
+            }
+
+            class FixedWindowCounter {
+                constructor(windowSize, maxRequests) {
+                    this.windowSize = windowSize;
+                    this.maxRequests = maxRequests;
+                    this.count = 0;
+                    this.timeElapsed = 0;
+                    this.lastUpdateTime = millis();
+                }
+
+                update() {
+                    let now = millis();
+                    let dt = (now - this.lastUpdateTime) / 1000;
+                    this.timeElapsed += dt;
+                    this.lastUpdateTime = now;
+
+                    if (this.timeElapsed >= this.windowSize) {
+                        this.timeElapsed = 0;
+                        this.count = 0;
+                    }
+                }
+
+                increment() {
+                    if (this.count < this.maxRequests) {
+                        this.count++;
+                        return true;
+                    }
+                    return false;
+                }
+            }
+
+            class Request {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = 20;
+                    this.speed = 3;
+                }
+
+                update() {
+                    this.x += this.speed;
+                }
+
+                display() {
+                    fill(colors.request);
+                    stroke(colors.text);
+                    strokeWeight(1);
+                    ellipse(this.x, this.y, this.size);
+                }
+            }
+
+            class RejectedRequestAnimation {
+                constructor(startX, startY) {
+                    this.x = startX;
+                    this.y = startY;
+                    this.size = 20;
+                    this.opacity = 255;
+                    this.completed = false;
+                }
+
+                update() {
+                    this.y += 5;
+                    this.opacity -= 5;
+                    if (this.opacity <= 0) {
+                        this.completed = true;
+                    }
+                }
+
+                display() {
+                    push();
+                    fill(colors.rejected + hex(this.opacity, 2));
+                    stroke(colors.text + hex(this.opacity, 2));
+                    strokeWeight(1);
+                    ellipse(this.x, this.y, this.size);
+                    pop();
+                }
+            }
+
+            class ErrorPopup {
+                constructor() {
+                    this.opacity = 255;
+                    this.completed = false;
+                }
+
+                update() {
+                    this.opacity -= 2;
+                    if (this.opacity <= 0) {
+                        this.completed = true;
+                    }
+                }
+
+                display() {
+                    push();
+                    fill(colors.errorPopup + hex(this.opacity, 2));
+                    stroke(colors.text);
+                    strokeWeight(2);
+                    rect(width / 2 - 100, height / 2 - 50, 200, 100, 10);
+                    fill(255, this.opacity);
+                    noStroke();
+                    textSize(16);
+                    text("Request Limit", width / 2, height / 2 - 20);
+                    text("Exceeded", width / 2, height / 2 + 20);
+                    pop();
+                }
+            }
+        </script>
+    </body>
+</html>

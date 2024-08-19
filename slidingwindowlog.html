@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Sliding Window Log Visualization</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+        <style>
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background-color: #ffffff;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                color: #000000;
+            }
+            #app-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                max-width: 800px;
+                width: 100%;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+            h1 {
+                font-size: 24px;
+                margin-bottom: 10px;
+                color: #000000;
+            }
+            #controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: 20px;
+                background-color: #f0f0f0;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .control-group {
+                display: flex;
+                align-items: center;
+                margin: 0 10px;
+            }
+            label {
+                margin-right: 10px;
+                font-weight: 600;
+            }
+            input {
+                width: 60px;
+                padding: 5px;
+                border: 1px solid #000000;
+                border-radius: 4px;
+            }
+            #request-button {
+                background-color: #000000;
+                color: #ffffff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+                transition: background-color 0.3s;
+            }
+            #request-button:hover {
+                background-color: #333333;
+            }
+            #explanation {
+                max-width: 600px;
+                text-align: center;
+                margin-top: 20px;
+                line-height: 1.6;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app-container">
+            <h1>Sliding Window Log Algorithm Visualization</h1>
+            <div id="controls">
+                <div class="control-group">
+                    <label for="windowSize">Window Size (s):</label>
+                    <input
+                        type="number"
+                        id="windowSize"
+                        value="5"
+                        min="1"
+                        max="10"
+                    />
+                </div>
+                <div class="control-group">
+                    <label for="maxRequests">Max Requests:</label>
+                    <input
+                        type="number"
+                        id="maxRequests"
+                        value="10"
+                        min="1"
+                        max="20"
+                    />
+                </div>
+            </div>
+            <div id="canvas-container"></div>
+            <button id="request-button">Make Request</button>
+            <div id="explanation">
+                <p>
+                    The Sliding Window Log algorithm tracks the timestamp of
+                    each request within a sliding time window. It allows a
+                    maximum number of requests within this window. As time
+                    passes, older requests are removed from the log, allowing
+                    new requests to be accepted.
+                </p>
+            </div>
+        </div>
+        <script>
+            let slidingWindow;
+            let windowSizeInput, maxRequestsInput, requestButton;
+            let requests = [];
+            let rejectedRequestAnimation = null;
+            let errorPopup = null;
+
+            const colors = {
+                background: "#ffffff",
+                window: "#e6e6e6",
+                request: "#66cc66",
+                rejected: "#ff6666",
+                computer: "#999999",
+                arrow: "#333333",
+                errorPopup: "#ff0000",
+                text: "#000000",
+            };
+
+            function setup() {
+                const canvas = createCanvas(600, 400);
+                canvas.parent("canvas-container");
+                textAlign(CENTER, CENTER);
+
+                windowSizeInput = select("#windowSize");
+                maxRequestsInput = select("#maxRequests");
+                requestButton = select("#request-button");
+
+                windowSizeInput.input(updateSlidingWindow);
+                maxRequestsInput.input(updateSlidingWindow);
+                requestButton.mousePressed(makeRequest);
+
+                updateSlidingWindow();
+            }
+
+            function updateSlidingWindow() {
+                let windowSize = parseInt(windowSizeInput.value());
+                let maxRequests = parseInt(maxRequestsInput.value());
+                slidingWindow = new SlidingWindowLog(windowSize, maxRequests);
+                requests = [];
+            }
+
+            function makeRequest() {
+                if (slidingWindow.allowRequest()) {
+                    console.log("Request accepted");
+                    requests.push(new Request(50, height / 2, millis() / 1000));
+                } else {
+                    console.log("Request rejected");
+                    rejectedRequestAnimation = new RejectedRequestAnimation(
+                        50,
+                        height / 2,
+                    );
+                    errorPopup = new ErrorPopup();
+                }
+            }
+
+            function draw() {
+                background(colors.background);
+
+                slidingWindow.update();
+
+                drawSlidingWindow(width / 2, height / 2, 500, 100);
+                drawComputer(width - 100, height / 2, 100, 80);
+
+                for (let i = requests.length - 1; i >= 0; i--) {
+                    requests[i].update();
+                    requests[i].display();
+                    if (requests[i].x > width) {
+                        requests.splice(i, 1);
+                    }
+                }
+
+                if (rejectedRequestAnimation) {
+                    rejectedRequestAnimation.update();
+                    rejectedRequestAnimation.display();
+                    if (rejectedRequestAnimation.completed) {
+                        rejectedRequestAnimation = null;
+                    }
+                }
+
+                if (errorPopup) {
+                    errorPopup.update();
+                    errorPopup.display();
+                    if (errorPopup.completed) {
+                        errorPopup = null;
+                    }
+                }
+
+                displayWindowInfo();
+            }
+
+            function drawSlidingWindow(x, y, w, h) {
+                push();
+                translate(x - w / 2, y - h / 2);
+                fill(colors.window);
+                stroke(colors.text);
+                strokeWeight(2);
+                rect(0, 0, w, h, 10);
+
+                // Draw requests in the window
+                let currentTime = millis() / 1000;
+                for (let timestamp of slidingWindow.requestLog) {
+                    let requestX = map(
+                        timestamp,
+                        currentTime - slidingWindow.windowSize,
+                        currentTime,
+                        0,
+                        w,
+                    );
+                    fill(colors.request);
+                    noStroke();
+                    ellipse(requestX, h / 2, 10, 10);
+                }
+
+                // Draw window boundaries
+                stroke(colors.text);
+                strokeWeight(2);
+                line(0, 0, 0, h);
+                line(w, 0, w, h);
+
+                pop();
+            }
+
+            function drawComputer(x, y, w, h) {
+                push();
+                translate(x, y);
+                fill(colors.computer);
+                stroke(colors.text);
+                strokeWeight(2);
+                rect(0, 0, w, h * 0.7, 5);
+                fill(colors.background);
+                rect(w * 0.1, h * 0.1, w * 0.8, h * 0.5, 2);
+                fill(colors.computer);
+                rect(w * 0.4, h * 0.7, w * 0.2, h * 0.2);
+                rect(w * 0.3, h * 0.9, w * 0.4, h * 0.1);
+                pop();
+            }
+
+            function displayWindowInfo() {
+                fill(colors.text);
+                textSize(16);
+                text(
+                    `Requests: ${slidingWindow.requestLog.length}/${slidingWindow.maxRequests}`,
+                    width / 2,
+                    height - 40,
+                );
+                text(
+                    `Window: ${slidingWindow.windowSize}s`,
+                    width / 2,
+                    height - 20,
+                );
+            }
+
+            class SlidingWindowLog {
+                constructor(windowSize, maxRequests) {
+                    this.windowSize = windowSize;
+                    this.maxRequests = maxRequests;
+                    this.requestLog = [];
+                }
+
+                update() {
+                    let currentTime = millis() / 1000;
+                    this.requestLog = this.requestLog.filter(
+                        (timestamp) =>
+                            currentTime - timestamp <= this.windowSize,
+                    );
+                }
+
+                allowRequest() {
+                    this.update();
+                    if (this.requestLog.length < this.maxRequests) {
+                        this.requestLog.push(millis() / 1000);
+                        return true;
+                    }
+                    return false;
+                }
+            }
+
+            class Request {
+                constructor(x, y, timestamp) {
+                    this.x = x;
+                    this.y = y;
+                    this.timestamp = timestamp;
+                    this.size = 20;
+                    this.speed = 3;
+                }
+
+                update() {
+                    this.x += this.speed;
+                }
+
+                display() {
+                    fill(colors.request);
+                    stroke(colors.text);
+                    strokeWeight(1);
+                    ellipse(this.x, this.y, this.size);
+                }
+            }
+
+            class RejectedRequestAnimation {
+                constructor(startX, startY) {
+                    this.x = startX;
+                    this.y = startY;
+                    this.size = 20;
+                    this.opacity = 255;
+                    this.completed = false;
+                }
+
+                update() {
+                    this.y += 5;
+                    this.opacity -= 5;
+                    if (this.opacity <= 0) {
+                        this.completed = true;
+                    }
+                }
+
+                display() {
+                    push();
+                    fill(colors.rejected + hex(this.opacity, 2));
+                    stroke(colors.text + hex(this.opacity, 2));
+                    strokeWeight(1);
+                    ellipse(this.x, this.y, this.size);
+                    pop();
+                }
+            }
+
+            class ErrorPopup {
+                constructor() {
+                    this.opacity = 255;
+                    this.completed = false;
+                }
+
+                update() {
+                    this.opacity -= 2;
+                    if (this.opacity <= 0) {
+                        this.completed = true;
+                    }
+                }
+
+                display() {
+                    push();
+                    fill(colors.errorPopup + hex(this.opacity, 2));
+                    stroke(colors.text);
+                    strokeWeight(2);
+                    rect(width / 2 - 100, height / 2 - 50, 200, 100, 10);
+                    fill(255, this.opacity);
+                    noStroke();
+                    textSize(16);
+                    text("Request Limit", width / 2, height / 2 - 20);
+                    text("Exceeded", width / 2, height / 2 + 20);
+                    pop();
+                }
+            }
+        </script>
+    </body>
+</html>

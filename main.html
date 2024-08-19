@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Rate Limiting Algorithms</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                line-height: 1.6;
+                color: #000;
+                max-width: 800px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #fff;
+            }
+            #app-container {
+                background-color: #fff;
+                border: 2px solid #000;
+                border-radius: 8px;
+                padding: 20px;
+            }
+            h1 {
+                color: #000;
+                text-align: center;
+                border-bottom: 2px solid #000;
+                padding-bottom: 10px;
+            }
+            .algorithm-list {
+                list-style-type: none;
+                padding: 0;
+            }
+            .algorithm-item {
+                margin-bottom: 20px;
+                border: 1px solid #000;
+                border-radius: 4px;
+                overflow: hidden;
+            }
+            .algorithm-link {
+                display: block;
+                padding: 15px;
+                text-decoration: none;
+                color: #000;
+                font-weight: bold;
+                transition: background-color 0.3s ease;
+            }
+            .algorithm-link:hover {
+                background-color: #000;
+                color: #fff;
+            }
+            #explanation {
+                margin-top: 30px;
+                padding: 15px;
+                border: 1px solid #000;
+                border-radius: 4px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app-container">
+            <h1>Rate Limiting Algorithms</h1>
+            <ul class="algorithm-list">
+                <li class="algorithm-item">
+                    <a href="fixedwindowcounter.html" class="algorithm-link"
+                        >Fixed Window Counter</a
+                    >
+                </li>
+                <li class="algorithm-item">
+                    <a href="leakybucket.html" class="algorithm-link"
+                        >Leaky Bucket</a
+                    >
+                </li>
+                <li class="algorithm-item">
+                    <a href="slidingwindowcounter.html" class="algorithm-link"
+                        >Sliding Window Counter</a
+                    >
+                </li>
+                <li class="algorithm-item">
+                    <a href="slidingwindowlog.html" class="algorithm-link"
+                        >Sliding Window Log</a
+                    >
+                </li>
+                <li class="algorithm-item">
+                    <a href="tokenbucket.html" class="algorithm-link"
+                        >Token Bucket</a
+                    >
+                </li>
+            </ul>
+            <div id="explanation">
+                <h2>About Rate Limiting Algorithms</h2>
+                <p>
+                    Rate limiting algorithms are used to control the rate of
+                    traffic sent or received on a network. They are essential
+                    for preventing resource starvation, reducing server load,
+                    and ensuring fair usage of services. Click on any algorithm
+                    above to see a detailed visualization and explanation.
+                </p>
+            </div>
+        </div>
+    </body>
+</html>

@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Leaky Bucket Visualization</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+        <style>
+            body {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                background-color: #ffffff;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+                color: #000000;
+            }
+            #app-container {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                max-width: 800px;
+                width: 100%;
+                padding: 20px;
+                box-sizing: border-box;
+            }
+            h1 {
+                font-size: 24px;
+                margin-bottom: 10px;
+                color: #000000;
+            }
+            #controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: 20px;
+                background-color: #f0f0f0;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .control-group {
+                display: flex;
+                align-items: center;
+                margin: 0 10px;
+            }
+            label {
+                margin-right: 10px;
+                font-weight: 600;
+            }
+            input {
+                width: 60px;
+                padding: 5px;
+                border: 1px solid #000000;
+                border-radius: 4px;
+            }
+            #add-packet-button {
+                background-color: #000000;
+                color: #ffffff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 16px;
+                transition: background-color 0.3s;
+            }
+            #add-packet-button:hover {
+                background-color: #333333;
+            }
+            #explanation {
+                max-width: 600px;
+                text-align: center;
+                margin-top: 20px;
+                line-height: 1.6;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="app-container">
+            <h1>Leaky Bucket Algorithm Visualization</h1>
+            <div id="controls">
+                <div class="control-group">
+                    <label for="capacity">Capacity:</label>
+                    <input
+                        type="number"
+                        id="capacity"
+                        value="10"
+                        min="1"
+                        max="20"
+                    />
+                </div>
+                <div class="control-group">
+                    <label for="leakRate">Leak Rate (packets/s):</label>
+                    <input
+                        type="number"
+                        id="leakRate"
+                        value="1"
+                        min="0.1"
+                        max="5"
+                        step="0.1"
+                    />
+                </div>
+            </div>
+            <div id="canvas-container"></div>
+            <button id="add-packet-button">Add Packet</button>
+            <div id="explanation">
+                <p>
+                    The leaky bucket algorithm controls the rate of data flow in
+                    a network. Packets enter the bucket at variable rates and
+                    leave at a fixed rate. If the bucket is full, incoming
+                    packets are dropped. This helps smooth out bursty traffic
+                    and prevent network congestion.
+                </p>
+            </div>
+        </div>
+        <script>
+            let bucket;
+            let capacityInput, leakRateInput, addPacketButton;
+            let packets = [];
+            let droppedPacketAnimation = null;
+            let errorPopup = null;
+
+            const colors = {
+                background: "#ffffff",
+                bucket: "#cccccc",
+                packet: "#66ccff",
+                computer: "#999999",
+                arrow: "#333333",
+                errorPopup: "#ff0000",
+                text: "#000000",
+            };
+
+            function setup() {
+                const canvas = createCanvas(600, 400);
+                canvas.parent("canvas-container");
+                textAlign(CENTER, CENTER);
+
+                capacityInput = select("#capacity");
+                leakRateInput = select("#leakRate");
+                addPacketButton = select("#add-packet-button");
+
+                capacityInput.input(updateBucket);
+                leakRateInput.input(updateBucket);
+                addPacketButton.mousePressed(addPacket);
+
+                updateBucket();
+            }
+
+            function updateBucket() {
+                let capacity = parseInt(capacityInput.value());
+                let leakRate = parseFloat(leakRateInput.value());
+                bucket = new LeakyBucket(capacity, leakRate);
+                packets = [];
+            }
+
+            function addPacket() {
+                if (bucket.addPacket()) {
+                    console.log("Packet added successfully");
+                    packets.push(new Packet(random(100, 200), 0));
+                } else {
+                    console.log("Bucket full. Packet dropped.");
+                    droppedPacketAnimation = new DroppedPacketAnimation(
+                        random(100, 200),
+                        0,
+                    );
+                    errorPopup = new ErrorPopup();
+                }
+            }
+
+            function draw() {
+                background(colors.background);
+
+                bucket.update();
+
+                drawBucket(150, height / 2, 150, 150);
+                drawComputer(width - 100, height / 2, 100, 80);
+                drawArrow(300, height / 2, width - 150, height / 2);
+
+                for (let i = packets.length - 1; i >= 0; i--) {
+                    packets[i].update();
+                    packets[i].display();
+                    if (packets[i].y > height) {
+                        packets.splice(i, 1);
+                    }
+                }
+
+                if (droppedPacketAnimation) {
+                    droppedPacketAnimation.update();
+                    droppedPacketAnimation.display();
+                    if (droppedPacketAnimation.completed) {
+                        droppedPacketAnimation = null;
+                    }
+                }
+
+                if (errorPopup) {
+                    errorPopup.update();
+                    errorPopup.display();
+                    if (errorPopup.completed) {
+                        errorPopup = null;
+                    }
+                }
+
+                displayBucketInfo();
+            }
+
+            function drawBucket(x, y, w, h) {
+                push();
+                translate(x - w / 2, y - h / 2);
+                fill(colors.bucket);
+                stroke(colors.text);
+                strokeWeight(2);
+                beginShape();
+                vertex(0, h * 0.2);
+                bezierVertex(0, 0, w, 0, w, h * 0.2);
+                vertex(w, h);
+                vertex(0, h);
+                endShape(CLOSE);
+
+                // Draw water level
+                let waterHeight = (bucket.packets / bucket.capacity) * h;
+                fill(colors.packet);
+                noStroke();
+                rect(0, h - waterHeight, w, waterHeight);
+
+                pop();
+            }
+
+            function drawComputer(x, y, w, h) {
+                push();
+                translate(x, y);
+                fill(colors.computer);
+                stroke(colors.text);
+                strokeWeight(2);
+                rect(0, 0, w, h * 0.7, 5);
+                fill(colors.background);
+                rect(w * 0.1, h * 0.1, w * 0.8, h * 0.5, 2);
+                fill(colors.computer);
+                rect(w * 0.4, h * 0.7, w * 0.2, h * 0.2);
+                rect(w * 0.3, h * 0.9, w * 0.4, h * 0.1);
+                pop();
+            }
+
+            function drawArrow(x1, y1, x2, y2) {
+                push();
+                stroke(colors.arrow);
+                strokeWeight(2);
+                line(x1, y1, x2, y2);
+                let angle = atan2(y2 - y1, x2 - x1);
+                translate(x2, y2);
+                rotate(angle);
+                fill(colors.arrow);
+                triangle(0, 0, -10, -5, -10, 5);
+                pop();
+            }
+
+            function displayBucketInfo() {
+                fill(colors.text);
+                textSize(16);
+                text(
+                    `Packets: ${Math.floor(bucket.packets)}/${bucket.capacity}`,
+                    150,
+                    height - 60,
+                );
+                text(
+                    `Leak Rate: ${bucket.leakRate.toFixed(1)} packet/s`,
+                    150,
+                    height - 40,
+                );
+            }
+
+            class LeakyBucket {
+                constructor(capacity, leakRate) {
+                    this.capacity = capacity;
+                    this.leakRate = leakRate;
+                    this.packets = 0;
+                    this.lastLeakTime = millis();
+                }
+
+                update() {
+                    let now = millis();
+                    let dt = (now - this.lastLeakTime) / 1000;
+                    this.packets = max(0, this.packets - this.leakRate * dt);
+                    this.lastLeakTime = now;
+                }
+
+                addPacket() {
+                    if (this.packets < this.capacity) {
+                        this.packets++;
+                        return true;
+                    }
+                    return false;
+                }
+            }
+
+            class Packet {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = 20;
+                    this.speed = 2;
+                }
+
+                update() {
+                    this.y += this.speed;
+                }
+
+                display() {
+                    fill(colors.packet);
+                    stroke(colors.text);
+                    strokeWeight(1);
+                    rect(
+                        this.x - this.size / 2,
+                        this.y - this.size / 2,
+                        this.size,
+                        this.size,
+                    );
+                }
+            }
+
+            class DroppedPacketAnimation {
+                constructor(startX, startY) {
+                    this.x = startX;
+                    this.y = startY;
+                    this.size = 20;
+                    this.opacity = 255;
+                    this.completed = false;
+                }
+
+                update() {
+                    this.y += 5;
+                    this.opacity -= 5;
+                    if (this.opacity <= 0) {
+                        this.completed = true;
+                    }
+                }
+
+                display() {
+                    push();
+                    fill(colors.packet + hex(this.opacity, 2));
+                    stroke(colors.text + hex(this.opacity, 2));
+                    strokeWeight(1);
+                    rect(
+                        this.x - this.size / 2,
+                        this.y - this.size / 2,
+                        this.size,
+                        this.size,
+                    );
+                    pop();
+                }
+            }
+
+            class ErrorPopup {
+                constructor() {
+                    this.opacity = 255;
+                    this.completed = false;
+                }
+
+                update() {
+                    this.opacity -= 2;
+                    if (this.opacity <= 0) {
+                        this.completed = true;
+                    }
+                }
+
+                display() {
+                    push();
+                    fill(colors.errorPopup + hex(this.opacity, 2));
+                    stroke(colors.text);
+                    strokeWeight(2);
+                    rect(width / 2 - 100, height / 2 - 50, 200, 100, 10);
+                    fill(255, this.opacity);
+                    noStroke();
+                    textSize(16);
+                    text("Bucket Full", width / 2, height / 2 - 20);
+                    text("Packet Dropped", width / 2, height / 2 + 20);
+                    pop();
+                }
+            }
+        </script>
+    </body>
+</html>

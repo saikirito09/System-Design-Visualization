@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Back-of-the-Envelope System Design Estimator</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
+        <header>
+            <h1>Back-of-the-Envelope System Design Estimator</h1>
+        </header>
+
+        <div class="container">
+            <section class="explanation-section">
+                <h2>About Back-of-the-Envelope Simulations</h2>
+                <p>
+                    A back-of-the-envelope simulation is a quick, approximate
+                    calculation used to estimate the feasibility of an idea or
+                    compare different approaches in system design. It's a
+                    valuable tool for:
+                </p>
+                <ul>
+                    <li>Quickly assessing system requirements</li>
+                    <li>Comparing different architectural approaches</li>
+                    <li>
+                        Identifying potential bottlenecks early in the design
+                        process
+                    </li>
+                    <li>Facilitating discussions among team members</li>
+                </ul>
+                <p>
+                    While not precise, these estimations provide a starting
+                    point for more detailed analysis and help guide
+                    decision-making in the early stages of system design.
+                </p>
+
+                <h3>Real-World Scenarios and Calculations</h3>
+                <div class="scenarios">
+                    <div class="scenario">
+                        <h4>Queries Per Second (QPS)</h4>
+                        <p>
+                            <strong>Scenario:</strong> Twitter-like Service with
+                            100 million daily active users. Each user makes an
+                            average of 20 requests per day.
+                        </p>
+                        <p><strong>Calculation:</strong></p>
+                        <ol>
+                            <li>
+                                Total daily requests: 100 million * 20 = 2
+                                billion requests/day
+                            </li>
+                            <li>
+                                Convert to seconds: 2 billion / (24 * 60 * 60) ≈
+                                23,148 QPS
+                            </li>
+                            <li>
+                                Add a 2x safety factor: 23,148 * 2 ≈ 46,296 QPS
+                            </li>
+                        </ol>
+                        <p><strong>Estimated QPS:</strong> ~46,300 QPS</p>
+                    </div>
+                    <div class="scenario">
+                        <h4>Storage Requirements</h4>
+                        <p>
+                            <strong>Scenario:</strong> Instagram-like photo
+                            sharing service receiving 5 million new photos per
+                            day. Each photo is about 2MB in size.
+                        </p>
+                        <p><strong>Calculation:</strong></p>
+                        <ol>
+                            <li>
+                                Daily storage need: 5 million * 2MB = 10 million
+                                MB = 10TB per day
+                            </li>
+                            <li>
+                                Monthly storage: 10TB * 30 = 300TB per month
+                            </li>
+                            <li>Yearly storage: 300TB * 12 = 3.6PB per year</li>
+                        </ol>
+                        <p>
+                            <strong>Estimated yearly storage need:</strong>
+                            ~3.6PB
+                        </p>
+                    </div>
+                    <div class="scenario">
+                        <h4>Bandwidth</h4>
+                        <p>
+                            <strong>Scenario:</strong> YouTube-like video
+                            streaming service serving 1 billion hours of video
+                            per day. Average video bitrate is 5 Mbps.
+                        </p>
+                        <p><strong>Calculation:</strong></p>
+                        <ol>
+                            <li>
+                                Convert hours to seconds: 1 billion * 3600 = 3.6
+                                trillion seconds of video per day
+                            </li>
+                            <li>
+                                Total daily data: 3.6 trillion * 5 Mbps = 18
+                                trillion Mb per day
+                            </li>
+                            <li>
+                                Convert to Gbps: (18 trillion) / (24 * 60 * 60)
+                                ≈ 208,333 Gbps
+                            </li>
+                        </ol>
+                        <p>
+                            <strong>Estimated bandwidth:</strong> ~208,333 Gbps
+                        </p>
+                    </div>
+                    <div class="scenario">
+                        <h4>Load Balancer Capacity</h4>
+                        <p>
+                            <strong>Scenario:</strong> E-commerce platform
+                            experiencing 100,000 requests per second during peak
+                            hours. Each server can handle 1,000 requests per
+                            second.
+                        </p>
+                        <p><strong>Calculation:</strong></p>
+                        <ol>
+                            <li>
+                                Required servers: 100,000 / 1,000 = 100 servers
+                            </li>
+                            <li>
+                                Add 20% for redundancy: 100 * 1.2 = 120 servers
+                            </li>
+                        </ol>
+                        <p>
+                            <strong>Estimated number of servers:</strong> 120
+                            servers
+                        </p>
+                    </div>
+                    <div class="scenario">
+                        <h4>Cumulative Storage</h4>
+                        <p>
+                            <strong>Scenario:</strong> Cloud storage service
+                            starting with 1 PB of data and growing by 10% each
+                            month.
+                        </p>
+                        <p><strong>Calculation:</strong></p>
+                        <ol>
+                            <li>Month 1: 1 PB * 1.1 = 1.1 PB</li>
+                            <li>Month 2: 1.1 PB * 1.1 = 1.21 PB</li>
+                            <li>Month 12: 1 PB * (1.1^12) ≈ 3.14 PB</li>
+                        </ol>
+                        <p>
+                            <strong>Estimated storage after one year:</strong>
+                            ~3.14 PB
+                        </p>
+                    </div>
+                    <div class="scenario">
+                        <h4>Multi-Node Bandwidth</h4>
+                        <p>
+                            <strong>Scenario:</strong> Distributed database
+                            system with 10 nodes, each handling 10,000
+                            transactions per second. Each transaction involves
+                            1KB of data transfer between nodes.
+                        </p>
+                        <p><strong>Calculation:</strong></p>
+                        <ol>
+                            <li>
+                                Data transferred per node: 10,000 * 1KB = 10MB/s
+                            </li>
+                            <li>
+                                Total data transferred: 10MB/s * 10 nodes =
+                                100MB/s
+                            </li>
+                            <li>
+                                Convert to Gbps: (100 * 8) / 1000 = 0.8 Gbps
+                            </li>
+                        </ol>
+                        <p>
+                            <strong>Estimated inter-node bandwidth:</strong> 0.8
+                            Gbps
+                        </p>
+                    </div>
+                    <div class="scenario">
+                        <h4>Geographical Distribution</h4>
+                        <p>
+                            <strong>Scenario:</strong> Global CDN for a video
+                            streaming service across 5 major geographical
+                            regions.
+                        </p>
+                        <p>
+                            <strong>Calculation:</strong> (Assuming uneven
+                            distribution based on internet usage statistics)
+                        </p>
+                        <ol>
+                            <li>Asia-Pacific: 50%</li>
+                            <li>North America: 20%</li>
+                            <li>Europe: 15%</li>
+                            <li>Latin America: 10%</li>
+                            <li>Middle East and Africa: 5%</li>
+                        </ol>
+                        <p>
+                            <strong>Estimated distribution:</strong> Capacity
+                            should be allocated accordingly
+                        </p>
+                    </div>
+                    <div class="scenario">
+                        <h4>Computational Resources</h4>
+                        <p>
+                            <strong>Scenario:</strong> AI model training with 1
+                            trillion parameters. Each parameter requires 100
+                            floating-point operations per training example.
+                        </p>
+                        <p><strong>Calculation:</strong></p>
+                        <ol>
+                            <li>
+                                Operations per example: 1 trillion * 100 = 100
+                                trillion operations
+                            </li>
+                            <li>
+                                Assuming 1 million training examples: 100
+                                trillion * 1 million = 100 quintillion
+                                operations
+                            </li>
+                            <li>
+                                Assuming 1 TFLOPS GPU: 100 quintillion / (1
+                                trillion * 86400) ≈ 1,157 GPU-days
+                            </li>
+                        </ol>
+                        <p>
+                            <strong>Estimated computation time:</strong> ~1,157
+                            GPU-days (or ~32 GPUs for 36 days)
+                        </p>
+                    </div>
+                </div>
+
+                <h3>How to Use This Tool</h3>
+                <ol>
+                    <li>
+                        Select the type of estimation you need from the dropdown
+                        menu.
+                    </li>
+                    <li>
+                        Review the real-world scenario and calculation provided
+                        for that estimation type.
+                    </li>
+                    <li>
+                        Fill in the required parameters based on your specific
+                        scenario and assumptions.
+                    </li>
+                    <li>Click "Run Simulation" to see the results.</li>
+                    <li>
+                        Analyze the output, including the graph, to understand
+                        potential trends and peaks in your system's
+                        requirements.
+                    </li>
+                </ol>
+                <p>
+                    Remember: These are rough estimates. Use them as a starting
+                    point for further investigation and more detailed planning.
+                </p>
+            </section>
+
+            <section class="estimator-section">
+                <h2>Estimator Tool</h2>
+                <div>
+                    <label for="estimationType">Estimation Type:</label>
+                    <select id="estimationType">
+                        <option value="qps">Queries Per Second (QPS)</option>
+                        <option value="storage">Storage Requirements</option>
+                        <option value="bandwidth">Bandwidth</option>
+                        <option value="loadBalancer">
+                            Load Balancer Capacity
+                        </option>
+                        <option value="cumulativeStorage">
+                            Cumulative Storage
+                        </option>
+                        <option value="multiNodeBandwidth">
+                            Multi-Node Bandwidth
+                        </option>
+                        <option value="geoDistribution">
+                            Geographical Distribution
+                        </option>
+                        <option value="computeResources">
+                            Computational Resources
+                        </option>
+                    </select>
+                </div>
+                <div id="dynamicInputs"></div>
+                <button onclick="runSimulation()">Run Simulation</button>
+                <div id="results"></div>
+                <div id="chart"></div>
+            </section>
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>

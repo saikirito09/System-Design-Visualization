@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Neural Network Pruning Simulation with D3.js</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 20px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            #controls {
+                margin-bottom: 20px;
+            }
+            button,
+            input {
+                margin: 5px;
+                padding: 5px;
+            }
+            #network-container {
+                border: 1px solid #ccc;
+                width: 800px;
+                height: 600px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Neural Network Pruning Simulation</h1>
+        <div id="controls">
+            <input type="number" id="layerSize" min="1" max="10" value="3" />
+            <button id="addLayer">Add Layer</button>
+            <input
+                type="number"
+                id="threshold"
+                min="0"
+                max="1"
+                step="0.1"
+                value="0.5"
+            />
+            <button id="prune">Prune Network</button>
+            <button id="reset">Reset Network</button>
+        </div>
+        <div id="network-container"></div>
+
+        <script>
+            // Network data
+            let network = {
+                nodes: [
+                    { id: "i1", layer: 0, type: "input" },
+                    { id: "i2", layer: 0, type: "input" },
+                    { id: "i3", layer: 0, type: "input" },
+                    { id: "o1", layer: 1, type: "output" },
+                    { id: "o2", layer: 1, type: "output" },
+                ],
+                links: [
+                    { source: "i1", target: "o1", weight: Math.random() },
+                    { source: "i1", target: "o2", weight: Math.random() },
+                    { source: "i2", target: "o1", weight: Math.random() },
+                    { source: "i2", target: "o2", weight: Math.random() },
+                    { source: "i3", target: "o1", weight: Math.random() },
+                    { source: "i3", target: "o2", weight: Math.random() },
+                ],
+            };
+
+            // Set up SVG
+            const width = 800;
+            const height = 600;
+            const svg = d3
+                .select("#network-container")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+
+            // Update network function
+            function updateNetwork() {
+                // Remove existing elements
+                svg.selectAll("*").remove();
+
+                // Calculate layer positions
+                const layers = d3.group(network.nodes, (d) => d.layer);
+                const layerWidth = width / (layers.size + 1);
+
+                // Position nodes
+                network.nodes.forEach((node) => {
+                    node.x = (node.layer + 1) * layerWidth;
+                    node.y =
+                        (height / (layers.get(node.layer).length + 1)) *
+                        (layers.get(node.layer).indexOf(node) + 1);
+                });
+
+                // Create link elements
+                const link = svg
+                    .append("g")
+                    .selectAll("line")
+                    .data(network.links)
+                    .enter()
+                    .append("line")
+                    .attr(
+                        "x1",
+                        (d) => network.nodes.find((n) => n.id === d.source).x,
+                    )
+                    .attr(
+                        "y1",
+                        (d) => network.nodes.find((n) => n.id === d.source).y,
+                    )
+                    .attr(
+                        "x2",
+                        (d) => network.nodes.find((n) => n.id === d.target).x,
+                    )
+                    .attr(
+                        "y2",
+                        (d) => network.nodes.find((n) => n.id === d.target).y,
+                    )
+                    .attr("stroke", "#999")
+                    .attr("stroke-opacity", 0.6)
+                    .attr("stroke-width", (d) => Math.abs(d.weight) * 2);
+
+                // Create node elements
+                const node = svg
+                    .append("g")
+                    .selectAll("circle")
+                    .data(network.nodes)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", (d) => d.x)
+                    .attr("cy", (d) => d.y)
+                    .attr("r", 10)
+                    .attr("fill", (d) =>
+                        d.type === "input"
+                            ? "#ff0000"
+                            : d.type === "output"
+                              ? "#0000ff"
+                              : "#00ff00",
+                    );
+
+                // Add titles (tooltips) to nodes
+                node.append("title").text((d) => `${d.id} (${d.type})`);
+            }
+
+            // Add layer function
+            function addLayer() {
+                const layerSize = parseInt(
+                    document.getElementById("layerSize").value,
+                );
+                const newLayerIndex = d3.max(network.nodes, (d) => d.layer) + 1;
+                const newLayer = Array.from({ length: layerSize }, (_, i) => ({
+                    id: `h${newLayerIndex}_${i}`,
+                    layer: newLayerIndex,
+                    type: "hidden",
+                }));
+
+                // Add new nodes
+                network.nodes.push(...newLayer);
+
+                // Add links to new layer
+                const prevLayer = network.nodes.filter(
+                    (d) => d.layer === newLayerIndex - 1,
+                );
+                const newLinks = [];
+
+                prevLayer.forEach((source) => {
+                    newLayer.forEach((target) => {
+                        newLinks.push({
+                            source: source.id,
+                            target: target.id,
+                            weight: Math.random() * 2 - 1,
+                        });
+                    });
+                });
+
+                network.links.push(...newLinks);
+
+                // Update output layer
+                const outputLayer = network.nodes.filter(
+                    (d) => d.type === "output",
+                );
+                outputLayer.forEach((node) => (node.layer = newLayerIndex + 1));
+
+                // Add links from new layer to output
+                newLayer.forEach((source) => {
+                    outputLayer.forEach((target) => {
+                        network.links.push({
+                            source: source.id,
+                            target: target.id,
+                            weight: Math.random() * 2 - 1,
+                        });
+                    });
+                });
+
+                updateNetwork();
+            }
+
+            // Prune network function
+            function pruneNetwork() {
+                const threshold = parseFloat(
+                    document.getElementById("threshold").value,
+                );
+                network.links = network.links.filter(
+                    (link) => Math.abs(link.weight) >= threshold,
+                );
+                updateNetwork();
+            }
+
+            // Reset network function
+            function resetNetwork() {
+                network = {
+                    nodes: [
+                        { id: "i1", layer: 0, type: "input" },
+                        { id: "i2", layer: 0, type: "input" },
+                        { id: "i3", layer: 0, type: "input" },
+                        { id: "o1", layer: 1, type: "output" },
+                        { id: "o2", layer: 1, type: "output" },
+                    ],
+                    links: [
+                        { source: "i1", target: "o1", weight: Math.random() },
+                        { source: "i1", target: "o2", weight: Math.random() },
+                        { source: "i2", target: "o1", weight: Math.random() },
+                        { source: "i2", target: "o2", weight: Math.random() },
+                        { source: "i3", target: "o1", weight: Math.random() },
+                        { source: "i3", target: "o2", weight: Math.random() },
+                    ],
+                };
+                updateNetwork();
+            }
+
+            // Event listeners
+            document
+                .getElementById("addLayer")
+                .addEventListener("click", addLayer);
+            document
+                .getElementById("prune")
+                .addEventListener("click", pruneNetwork);
+            document
+                .getElementById("reset")
+                .addEventListener("click", resetNetwork);
+
+            // Initial render
+            updateNetwork();
+        </script>
+    </body>
+</html>
